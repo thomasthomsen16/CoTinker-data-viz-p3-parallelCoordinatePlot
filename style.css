@@ -17,3 +17,18 @@ body {
     padding-left: 8px;
     
 }
+
+.vega-bindings {
+    display: flex;
+}
+
+.vega-bind {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 5px;
+}
+
+.chart-container {
+    margin-left: 8px;
+}

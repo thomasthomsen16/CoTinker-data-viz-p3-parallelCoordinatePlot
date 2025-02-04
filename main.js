@@ -1,36 +1,202 @@
- // Register Vega-Lite
- vl.register(vega, vegaLite);
-
 document.addEventListener("DOMContentLoaded", function () {
     fetch('https://raw.githubusercontent.com/thomasthomsen16/dataset-p2/refs/heads/main/30000_spotify_songs.csv')
         .then(response => response.text())
         .then(csvData => {
             const parsedData = parseCSV(csvData);
-            const sampledData = getRandomSample(parsedData, 1000); //Might be used later to reduce complexity of dataset
-
-            // Render chart
-            renderCharts(parsedData,chart1);
+            const sampleData = getRandomSample(parsedData, 100);
+            renderChart(sampleData, "chart1");
         })
         .catch(error => console.error("Error loading CSV data: ", error));
 });
 
-function renderChart(parsedData,chartId) {
+function renderChart(sampleData, chartId) {
     const chartContainer = document.getElementById(chartId);
     chartContainer.innerHTML = ""; // Clear existing content
 
-    const spec {
-        $schema: "https://vega.github.io/schema/vega-lite/v5.json",
-        width: 700,
-        height: 600,
-        data: { values: parsedData },
-    }
-  vegaEmbed(`#${chartId}`, spec);
+    const spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Parallel coordinates plot for Spotify songs showing audio features, color-coded by genre.",
+        "data": {
+            "values": sampleData  // Data passed from JavaScript (after parsing CSV)
+        },
+        "width": 800,
+        "height": 500,
+        params: [
+            {
+                name: "edm",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+            {
+                name: "latin",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+            {
+                name: "pop",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+            {
+                name: "rnb",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+            {
+                name: "rap",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+            {
+                name: "rock",
+                value: 1,
+                bind: { input: "checkbox" }
+            },
+
+        ],
+        "transform": [
+            {
+                "filter": "datum['danceability'] != null && datum['energy'] != null && datum['speechiness'] != null && datum['acousticness'] != null && datum['instrumentalness'] != null && datum['valence'] != null && datum['tempo'] != null && datum['duration_ms'] != null"
+            },
+            {
+                "window": [{ "op": "count", "as": "index" }]
+            },
+            {
+                "fold": ["danceability", "energy", "speechiness", "acousticness", "instrumentalness", "valence", "tempo", "duration_ms"],  // Fold audio features
+                "as": ["key", "value"]  // 'key' represents the feature name, 'value' represents the value for that feature
+            },
+            {
+                "joinaggregate": [
+                    { "op": "min", "field": "value", "as": "min" },
+                    { "op": "max", "field": "value", "as": "max" }
+                ],
+                "groupby": ["key"]  // Group by feature name (e.g., danceability, energy)
+            },
+            {
+                "calculate": "(datum.value - datum.min) / (datum.max - datum.min)",  // Normalize values to the range [0, 1]
+                "as": "norm_val"
+            },
+            {
+                "calculate": "(datum.min + datum.max) / 2",  // Calculate midpoint for ticks
+                "as": "mid"
+            }
+        ],
+        "layer": [
+            {
+                "mark": { "type": "rule", "color": "#ccc" },
+                "encoding": {
+                    "detail": { "aggregate": "count" },
+                    "x": { "field": "key" }
+                }
+            },
+            {
+                "mark": "line",
+                "encoding": {
+                    "color": { "type": "nominal", "field": "playlist_genre" },  // Color by genre (pop, rap, rock, etc.)
+                    "detail": { "type": "nominal", "field": "index" },
+                    "opacity": {
+                        "condition": {
+                            "test": {
+                                "or": [
+                                    { "and": ["datum.playlist_genre == 'edm'", "edm"] },
+                                    { "and": ["datum.playlist_genre == 'latin'", "latin"] },
+                                    { "and": ["datum.playlist_genre == 'pop'", "pop"] },
+                                    { "and": ["datum.playlist_genre == 'r&b'", "rnb"] },
+                                    { "and": ["datum.playlist_genre == 'rap'", "rap"] },
+                                    { "and": ["datum.playlist_genre == 'rock'", "rock"] }
+                                ]
+                            },
+                            "value": 1  // Show line if selected
+                        },
+                        "value": 0  // Hide line if not selected
+                    },
+                    "x": { "type": "nominal", "field": "key" },  // X-axis represents each feature
+                    "y": { "type": "quantitative", "field": "norm_val", "axis": null },  // Y-axis is the normalized value
+                    "tooltip": [
+                        { "type": "quantitative", "field": "danceability" },
+                        { "type": "quantitative", "field": "energy" },
+                        { "type": "quantitative", "field": "speechiness" },
+                        { "type": "quantitative", "field": "acousticness" },
+                        { "type": "quantitative", "field": "instrumentalness" },
+                        { "type": "quantitative", "field": "valence" },
+                        { "type": "quantitative", "field": "tempo" },
+                        { "type": "quantitative", "field": "duration_ms" }
+                    ]
+                }
+            },
+            {
+                "encoding": {
+                    "x": { "type": "nominal", "field": "key" },
+                    "y": { "value": 0 }
+                },
+                "layer": [
+                    {
+                        "mark": { "type": "text", "style": "label" },
+                        "encoding": {
+                            "text": { "aggregate": "max", "field": "max" }
+                        }
+                    },
+                    {
+                        "mark": { "type": "tick", "style": "tick", "size": 8, "color": "#ccc" }
+                    }
+                ]
+            },
+            {
+                "encoding": {
+                    "x": { "type": "nominal", "field": "key" },
+                    "y": { "value": 150 }
+                },
+                "layer": [
+                    {
+                        "mark": { "type": "text", "style": "label" },
+                        "encoding": {
+                            "text": { "aggregate": "min", "field": "mid" }
+                        }
+                    },
+                    {
+                        "mark": { "type": "tick", "style": "tick", "size": 8, "color": "#ccc" }
+                    }
+                ]
+            },
+            {
+                "encoding": {
+                    "x": { "type": "nominal", "field": "key" },
+                    "y": { "value": 300 }
+                },
+                "layer": [
+                    {
+                        "mark": { "type": "text", "style": "label" },
+                        "encoding": {
+                            "text": { "aggregate": "min", "field": "min" }
+                        }
+                    },
+                    {
+                        "mark": { "type": "tick", "style": "tick", "size": 8, "color": "#ccc" }
+                    }
+                ]
+            }
+        ],
+        "config": {
+            "axisX": { "domain": false, "labelAngle": 0, "tickColor": "#ccc", "title": null },
+            "view": { "stroke": null },
+            "style": {
+                "label": { "baseline": "middle", "align": "right", "dx": -5 },
+                "tick": { "orient": "horizontal" }
+            }
+        }
+    };
+
+
+
+
+    vegaEmbed(`#${chartId}`, spec);
 }
+
 
 // Function to parse CSV data into an array of objects
 function parseCSV(csvData) {
-    const rows = csvData.split("\n").filter(row => row.trim() !== ""); // Remove empty rows
-    const header = rows[0].split(",").map(column => column.trim()); // Trim headers
+    const rows = csvData.split("\n").filter(row => row.trim() !== "");
+    const header = rows[0].split(",").map(column => column.trim());
 
     return rows.slice(1).map(row => {
         const values = row.split(",");
@@ -41,36 +207,22 @@ function parseCSV(csvData) {
 
         let parsedRow = {};
         header.forEach((column, index) => {
-            parsedRow[column] = values[index].trim();
+            let value = values[index].trim();
+            parsedRow[column] = isNaN(value) ? value : parseFloat(value);
         });
 
-        // Convert danceability and tempo to numbers
-        parsedRow.danceability = isNaN(parsedRow.danceability) ? null : parseFloat(parsedRow.danceability);
-        parsedRow.tempo = isNaN(parsedRow.tempo) ? null : parseFloat(parsedRow.tempo);
-
-        return parsedRow.danceability !== null && parsedRow.tempo !== null ? parsedRow : null;
+        return parsedRow;
     }).filter(row => row !== null);
 }
 
-// Function to get a random sample of data points
+
 function getRandomSample(data, sampleSize) {
-    const validData = data.filter(row => row.danceability !== null && row.tempo !== null);
+    const requiredFields = ["danceability", "energy", "speechiness", "acousticness", "instrumentalness", "valence", "tempo", "duration_ms"];
+    const validData = data.filter(row => requiredFields.every(field => row[field] !== null));
 
     if (validData.length <= sampleSize) {
         return validData;
     }
 
-    const sampledData = [];
-    const seenIndexes = new Set();
-
-    while (sampledData.length < sampleSize) {
-        const randomIndex = Math.floor(Math.random() * validData.length);
-
-        if (!seenIndexes.has(randomIndex)) {
-            sampledData.push(validData[randomIndex]);
-            seenIndexes.add(randomIndex);
-        }
-    }
-
-    return sampledData;
+    return validData.sort(() => 0.5 - Math.random()).slice(0, sampleSize);
 }
