@@ -56,28 +56,28 @@ function renderChart(sampleData, chartId) {
         ],
         "transform": [
             {
-                "filter": "datum['danceability'] != null && datum['energy'] != null && datum['speechiness'] != null && datum['acousticness'] != null && datum['instrumentalness'] != null && datum['valence'] != null && datum['tempo'] != null && datum['duration_ms'] != null"
+                "filter": "datum['danceability'] != null && datum['energy'] != null && datum['valence'] != null && datum['tempo'] != null"
             },
             {
                 "window": [{ "op": "count", "as": "index" }]
             },
             {
-                "fold": ["danceability", "energy", "speechiness", "acousticness", "instrumentalness", "valence", "tempo", "duration_ms"],  // Fold audio features
-                "as": ["key", "value"]  // 'key' represents the feature name, 'value' represents the value for that feature
+                "fold": ["tempo", "danceability", "energy", "valence"],  // Only the selected features
+                "as": ["key", "value"]
             },
             {
                 "joinaggregate": [
                     { "op": "min", "field": "value", "as": "min" },
                     { "op": "max", "field": "value", "as": "max" }
                 ],
-                "groupby": ["key"]  // Group by feature name (e.g., danceability, energy)
+                "groupby": ["key"]
             },
             {
-                "calculate": "(datum.value - datum.min) / (datum.max - datum.min)",  // Normalize values to the range [0, 1]
+                "calculate": "(datum.value - datum.min) / (datum.max - datum.min)",
                 "as": "norm_val"
             },
             {
-                "calculate": "(datum.min + datum.max) / 2",  // Calculate midpoint for ticks
+                "calculate": "(datum.min + datum.max) / 2",
                 "as": "mid"
             }
         ],
@@ -86,13 +86,17 @@ function renderChart(sampleData, chartId) {
                 "mark": { "type": "rule", "color": "#ccc" },
                 "encoding": {
                     "detail": { "aggregate": "count" },
-                    "x": { "field": "key" }
+                    "x": {
+                        "type": "nominal",
+                        "field": "key",
+                        "sort": ["tempo", "danceability", "energy", "valence"]
+                    }
                 }
             },
             {
                 "mark": "line",
                 "encoding": {
-                    "color": { "type": "nominal", "field": "playlist_genre" },  // Color by genre (pop, rap, rock, etc.)
+                    "color": { "type": "nominal", "field": "playlist_genre" },
                     "detail": { "type": "nominal", "field": "index" },
                     "opacity": {
                         "condition": {
@@ -106,27 +110,31 @@ function renderChart(sampleData, chartId) {
                                     { "and": ["datum.playlist_genre == 'rock'", "rock"] }
                                 ]
                             },
-                            "value": 1  // Show line if selected
+                            "value": 1
                         },
-                        "value": 0  // Hide line if not selected
+                        "value": 0
                     },
-                    "x": { "type": "nominal", "field": "key" },  // X-axis represents each feature
-                    "y": { "type": "quantitative", "field": "norm_val", "axis": null },  // Y-axis is the normalized value
+                    "x": {
+                        "type": "nominal",
+                        "field": "key",
+                        "sort": ["tempo", "danceability", "energy", "valence"]
+                    },
+                    "y": { "type": "quantitative", "field": "norm_val", "axis": null },
                     "tooltip": [
+                        { "type": "quantitative", "field": "tempo" },
                         { "type": "quantitative", "field": "danceability" },
                         { "type": "quantitative", "field": "energy" },
-                        { "type": "quantitative", "field": "speechiness" },
-                        { "type": "quantitative", "field": "acousticness" },
-                        { "type": "quantitative", "field": "instrumentalness" },
-                        { "type": "quantitative", "field": "valence" },
-                        { "type": "quantitative", "field": "tempo" },
-                        { "type": "quantitative", "field": "duration_ms" }
+                        { "type": "quantitative", "field": "valence" }
                     ]
                 }
             },
             {
                 "encoding": {
-                    "x": { "type": "nominal", "field": "key" },
+                    "x": {
+                        "type": "nominal",
+                        "field": "key",
+                        "sort": ["tempo", "danceability", "energy", "valence"]
+                    },
                     "y": { "value": 0 }
                 },
                 "layer": [
@@ -143,7 +151,11 @@ function renderChart(sampleData, chartId) {
             },
             {
                 "encoding": {
-                    "x": { "type": "nominal", "field": "key" },
+                    "x": {
+                        "type": "nominal",
+                        "field": "key",
+                        "sort": ["tempo", "danceability", "energy", "valence"]
+                    },
                     "y": { "value": 150 }
                 },
                 "layer": [
@@ -160,7 +172,11 @@ function renderChart(sampleData, chartId) {
             },
             {
                 "encoding": {
-                    "x": { "type": "nominal", "field": "key" },
+                    "x": {
+                        "type": "nominal",
+                        "field": "key",
+                        "sort": ["tempo", "danceability", "energy", "valence"]
+                    },
                     "y": { "value": 300 }
                 },
                 "layer": [
@@ -186,12 +202,8 @@ function renderChart(sampleData, chartId) {
         }
     };
 
-
-
-
     vegaEmbed(`#${chartId}`, spec);
 }
-
 
 // Function to parse CSV data into an array of objects
 function parseCSV(csvData) {
@@ -202,7 +214,7 @@ function parseCSV(csvData) {
         const values = row.split(",");
 
         if (values.length !== header.length) {
-            return null; // Skip rows with mismatched columns
+            return null;
         }
 
         let parsedRow = {};
@@ -215,9 +227,8 @@ function parseCSV(csvData) {
     }).filter(row => row !== null);
 }
 
-
 function getRandomSample(data, sampleSize) {
-    const requiredFields = ["danceability", "energy", "speechiness", "acousticness", "instrumentalness", "valence", "tempo", "duration_ms"];
+    const requiredFields = ["tempo", "danceability", "energy", "valence"];
     const validData = data.filter(row => requiredFields.every(field => row[field] !== null));
 
     if (validData.length <= sampleSize) {
