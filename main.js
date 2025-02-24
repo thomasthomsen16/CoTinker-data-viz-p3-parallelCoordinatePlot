@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(response => response.text())
         .then(csvData => {
             const parsedData = parseCSV(csvData);
-            const sampleData = getRandomSample(parsedData, 250);
+            const sampleData = getRandomSample(parsedData, 100);
             renderChart(sampleData, "chart1");
         })
         .catch(error => console.error("Error loading CSV data: ", error));
@@ -156,7 +156,7 @@ function renderChart(sampleData, chartId) {
                         "field": "key",
                         "sort": ["tempo", "danceability", "energy", "valence"]
                     },
-                    "y": { "value": 150 }
+                    "y": { "value": 250 } // Halfway down the chart
                 },
                 "layer": [
                     {
@@ -177,7 +177,7 @@ function renderChart(sampleData, chartId) {
                         "field": "key",
                         "sort": ["tempo", "danceability", "energy", "valence"]
                     },
-                    "y": { "value": 300 }
+                    "y": { "value": 500 } // Height of the chart
                 },
                 "layer": [
                     {
